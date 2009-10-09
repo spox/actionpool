@@ -22,6 +22,7 @@ module ActionPool
             @min_threads = min_threads
             @max_threads = max_threads
             @min_threads.times{create_thread}
+            @respond_to = ::Thread.current
         end
 
         # force:: force creation of a new thread
@@ -29,7 +30,7 @@ module ActionPool
         def create_thread(force=false)
             return nil unless @threads.size < @max_threads || force
             @logger.info('Pool is creating a new thread')
-            pt = ActionPool::Thread.new(self, @thread_timeout, @action_timeout, @logger)
+            pt = ActionPool::Thread.new(self, @thread_timeout, @action_timeout, @respond_to, @logger)
             @threads << pt
             return pt
         end
@@ -38,7 +39,7 @@ module ActionPool
         # Stop the pool
         def shutdown(force=false)
             @logger.info("Pool is now shutting down #{force ? 'using force' : ''}")
-            @threads.each{|t|t.stop}
+            @threads.each{|t|t.stop(force)}
             until(size < 1) do
                 @queue << lambda{}
                 sleep(0.1)
