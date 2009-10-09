@@ -1,4 +1,3 @@
-require 'actionpool/Exceptions'
 require 'actionpool/Thread'
 require 'actionpool/LogHelper'
 require 'thread'
@@ -6,23 +5,23 @@ require 'thread'
 module ActionPool
     class Pool
 
-        # min_threads:: minimum number of threads in pool
-        # max_threads:: maximum number of threads in pool
-        # t_to:: thread timeout waiting for action to process
-        # a_to:: maximum time action may be worked on before aborting
-        # logger:: logger to print logging messages to
+        # :min_threads:: minimum number of threads in pool
+        # :max_threads:: maximum number of threads in pool
+        # :t_to:: thread timeout waiting for action to process
+        # :a_to:: maximum time action may be worked on before aborting
+        # :logger:: logger to print logging messages to
         # Creates a new pool
-        def initialize(min_threads=10, max_threads=100, t_to=60, a_to=nil, logger=nil)
-            @logger = LogHelper.new(logger)
+        def initialize(args={})
+            @logger = LogHelper.new(args[:logger] ? args[:logger] : nil)
             @queue = Queue.new
             @threads = []
             @lock = Mutex.new
-            @thread_timeout = t_to
-            @action_timeout = a_to
-            @min_threads = min_threads
-            @max_threads = max_threads
-            @min_threads.times{create_thread}
+            @thread_timeout = args[:t_to] ? args[:t_to] : 60
+            @action_timeout = args[:a_to] ? args[:a_to] : nil
+            @min_threads = args[:min_threads] ? args[:min_threads] : 10
+            @max_threads = args[:max_threads] ? args[:max_threads] : 100
             @respond_to = ::Thread.current
+            @min_threads.times{create_thread}
         end
 
         # force:: force creation of a new thread
@@ -30,7 +29,7 @@ module ActionPool
         def create_thread(force=false)
             return nil unless @threads.size < @max_threads || force
             @logger.info('Pool is creating a new thread')
-            pt = ActionPool::Thread.new(self, @thread_timeout, @action_timeout, @respond_to, @logger)
+            pt = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
             @threads << pt
             return pt
         end
@@ -55,7 +54,7 @@ module ActionPool
         # action:: proc to be executed
         # Add a new proc/lambda to be executed
         def queue(action)
-            raise InvalidType.new(action.class, Proc) unless action.is_a?(Proc)
+            raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << action
             start_thread if size > min
         end
@@ -85,7 +84,7 @@ module ActionPool
         # Set maximum number of threads
         def max=(m)
             m = m.to_i
-            raise InvalidValue.new unless m > 0
+            raise ArgumentError.new('Maximum value must be greater than 0') unless m > 0
             @max_threads = m
         end
 
@@ -93,7 +92,7 @@ module ActionPool
         # Set minimum number of threads
         def min=(m)
             m = m.to_i
-            raise InvalidValue.new unless m > 0 && m <= @max_threads
+            raise ArgumentError.new("Minimum value must be greater than 0 and less than or equal to maximum (#{max})") unless m > 0 && m <= max
             @min_threads = m
             resize if m < size
         end
@@ -123,7 +122,7 @@ module ActionPool
         # Set maximum allowed time thead may idle in pool
         def thread_timeout=(t)
             t = to_i unless t.nil?
-            raise InvalidValue.new unless t > 0 || t.nil?
+            raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
             @thread_timeout = t
         end
 
@@ -132,7 +131,7 @@ module ActionPool
         # on a given action
         def action_timeout=(t)
             t = to_i unless t.nil?
-            raise InvalidValue.new unless t > 0 || t.nil?
+            raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
             @action_timeout = t
         end
 

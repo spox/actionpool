@@ -2,19 +2,21 @@ require 'timeout'
 
 module ActionPool
     class Thread
-        # pool:: pool thread is associated with
-        # t_timeout:: max time a thread is allowed to wait for action
-        # a_timeout:: max time thread is allowed to work
-        # respond:: thread to send execptions to
-        # logger:: LogHelper for logging messages
+        # :pool:: pool thread is associated with
+        # :t_timeout:: max time a thread is allowed to wait for action
+        # :a_timeout:: max time thread is allowed to work
+        # :respond_thread:: thread to send execptions to
+        # :logger:: LogHelper for logging messages
         # Create a new thread
-        def initialize(pool, t_timeout, a_timeout, respond_thread, logger=nil)
-            @pool = pool
-            @pool_timeout = t_timeout.nil? ? 0 : t_timeout
-            @action_timeout = a_timeout.nil? ? 0 : a_timeout
+        def initialize(args)
+            raise ArgumentError.new('ActionPool::Thread requires a pool') unless args[:pool]
+            raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
+            @pool = args[:pool]
+            @respond_to = args[:respond_thread]
+            @pool_timeout = args[:t_timeout] ? args[:t_timeout] : 0
+            @action_timeout = args[:a_timeout] ? args[:a_timeout] : 0
             @kill = false
-            @logger = logger
-            @respond_to = respond_thread
+            @logger = args[:logger] ? args[:logger] : nil
             @thread = ::Thread.new{ start_thread }
         end
 
