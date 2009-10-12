@@ -1,4 +1,5 @@
 require 'actionpool/Thread'
+require 'actionpool/Queue'
 require 'actionpool/LogHelper'
 require 'thread'
 
@@ -12,10 +13,10 @@ module ActionPool
         # :logger:: logger to print logging messages to
         # Creates a new pool
         def initialize(args={})
-            @logger = LogHelper.new(args[:logger] ? args[:logger] : nil)
-            @queue = Queue.new
+            raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
+            @logger = LogHelper.new(args[:logger])
+            @queue = ActionPool::Queue.new
             @threads = []
-            @lock = Mutex.new
             @thread_timeout = args[:t_to] ? args[:t_to] : 60
             @action_timeout = args[:a_to] ? args[:a_to] : nil
             @min_threads = args[:min_threads] ? args[:min_threads] : 10
@@ -25,7 +26,8 @@ module ActionPool
         end
 
         # force:: force creation of a new thread
-        # Create a new thread for pool
+        # Create a new thread for pool. Returns newly created ActionPool::Thread or
+        # nil if pool has reached maximum threads
         def create_thread(force=false)
             return nil unless @threads.size < @max_threads || force
             @logger.info('Pool is creating a new thread')
@@ -43,12 +45,14 @@ module ActionPool
                 @queue << lambda{}
                 sleep(0.1)
             end
+            nil
         end
 
         # action:: proc to be executed
         # Add a new proc/lambda to be executed (alias for queue)
         def <<(action)
             queue(action)
+            nil
         end
 
         # action:: proc to be executed
@@ -56,13 +60,31 @@ module ActionPool
         def queue(action)
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << action
-            start_thread if size > min
+            create_thread if @queue.length > 0 && @queue.num_waiting < 1 # only start a new thread if we need it
+            nil
+        end
+
+        # jobs:: Array of proc/lambdas
+        # Will queue a list of jobs into the pool
+        def add_jobs(jobs)
+            raise ArgumentError.new("Expecting an array but received: #{jobs.class}") unless jobs.is_a?(Array)
+            @queue.pause
+            begin
+                jobs.each do |job|
+                    raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda') unless job.is_a?(Proc)
+                    queue(job)
+                end
+            ensure
+                @queue.unpause
+            end
+            true
         end
 
         # block:: block to process
         # Adds a block to be processed
         def process(&block)
             queue(block)
+            nil
         end
 
         # Current size of pool
@@ -86,6 +108,7 @@ module ActionPool
             m = m.to_i
             raise ArgumentError.new('Maximum value must be greater than 0') unless m > 0
             @max_threads = m
+            m
         end
 
         # m:: new min
@@ -95,12 +118,18 @@ module ActionPool
             raise ArgumentError.new("Minimum value must be greater than 0 and less than or equal to maximum (#{max})") unless m > 0 && m <= max
             @min_threads = m
             resize if m < size
+            m
         end
 
         # t:: ActionPool::Thread to remove
         # Removes a thread from the pool
         def remove(t)
-            @threads.delete(t)
+            if(@threads.include?(t))
+                @threads.delete(t)
+                return true
+            else
+                return false
+            end
         end
 
         # Maximum number of seconds a thread
@@ -124,6 +153,7 @@ module ActionPool
             t = to_i unless t.nil?
             raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
             @thread_timeout = t
+            t
         end
 
         # t:: timeout in seconds (nil for infinte)
@@ -133,6 +163,7 @@ module ActionPool
             t = to_i unless t.nil?
             raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
             @action_timeout = t
+            t
         end
 
         # Returns the next action to be processed
@@ -153,6 +184,7 @@ module ActionPool
                 t = @threads.shift
                 t.stop
             end
+            nil
         end
     end
 end
