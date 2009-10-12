@@ -9,21 +9,24 @@ module ActionPool
         # :logger:: LogHelper for logging messages
         # Create a new thread
         def initialize(args)
+            raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
             raise ArgumentError.new('ActionPool::Thread requires a pool') unless args[:pool]
             raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
             @pool = args[:pool]
             @respond_to = args[:respond_thread]
-            @pool_timeout = args[:t_timeout] ? args[:t_timeout] : 0
+            @thread_timeout = args[:t_timeout] ? args[:t_timeout] : 0
             @action_timeout = args[:a_timeout] ? args[:a_timeout] : 0
             @kill = false
-            @logger = args[:logger] ? args[:logger] : nil
+            @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
             @thread = ::Thread.new{ start_thread }
         end
 
-        # stop the thread
+        # force:: force the thread to stop
+        # Stop the thread
         def stop(force=false)
             @kill = true
             @thread.kill if force
+            nil
         end
 
         private
