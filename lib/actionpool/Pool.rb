@@ -22,7 +22,7 @@ module ActionPool
             @min_threads = args[:min_threads] ? args[:min_threads] : 10
             @max_threads = args[:max_threads] ? args[:max_threads] : 100
             @respond_to = ::Thread.current
-            @min_threads.times{create_thread}
+            create_thread
         end
 
         # force:: force creation of a new thread
@@ -31,8 +31,11 @@ module ActionPool
         def create_thread(force=false)
             return nil unless @threads.size < @max_threads || force
             @logger.info('Pool is creating a new thread')
-            pt = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
-            @threads << pt
+            pt = nil
+            ((min - size) > 0 ? (min - size) : 1).times do
+                pt = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                @threads << pt
+            end
             return pt
         end
 
@@ -40,10 +43,8 @@ module ActionPool
         # Stop the pool
         def shutdown(force=false)
             @logger.info("Pool is now shutting down #{force ? 'using force' : ''}")
-            @threads.each{|t|t.stop(force)}
-            until(size < 1) do
-                @queue << lambda{}
-                sleep(0.1)
+            while(t = @threads.pop) do
+                t.stop(force)
             end
             nil
         end
@@ -125,6 +126,7 @@ module ActionPool
             m = m.to_i
             raise ArgumentError.new('Maximum value must be greater than 0') unless m > 0
             @max_threads = m
+            resize if m < size
             m
         end
 
@@ -134,7 +136,6 @@ module ActionPool
             m = m.to_i
             raise ArgumentError.new("Minimum value must be greater than 0 and less than or equal to maximum (#{max})") unless m > 0 && m <= max
             @min_threads = m
-            resize if m < size
             m
         end
 
@@ -196,9 +197,11 @@ module ActionPool
         private
         
         def resize
-            @logger.info("Pool is being resized to stated minimum: #{min}")
-            size - min.times do
-                t = @threads.shift
+            @logger.info("Pool is being resized to stated maximum: #{max}")
+            until(size <= max) do
+                t = nil
+                t = @threads.find{|t|t.waiting?}
+                t = @threads.shift unless t
                 t.stop
             end
             nil
