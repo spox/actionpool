@@ -18,6 +18,7 @@ module ActionPool
             @action_timeout = args[:a_timeout] ? args[:a_timeout] : 0
             @kill = false
             @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
+            @waiting = false
             @thread = ::Thread.new{ start_thread }
         end
 
@@ -25,8 +26,12 @@ module ActionPool
         # Stop the thread
         def stop(force=false)
             @kill = true
-            @thread.kill if force
+            @thread.kill if force || @waiting
             nil
+        end
+
+        def waiting?
+            @waiting
         end
 
         private
@@ -39,10 +44,14 @@ module ActionPool
                         action = nil
                         if(@pool.size > @pool.min)
                             Timeout::timeout(@thread_timeout) do
+                                @waiting = true
                                 action = @pool.action
+                                @waiting = false
                             end
                         else
+                            @waiting = true
                             action = @pool.action
+                            @waiting = false
                         end
                         run(*action) unless action.nil?
                     rescue Timeout::Error => boom
