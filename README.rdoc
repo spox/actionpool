@@ -73,13 +73,10 @@ ActionPool is just a simple thread pool. It allows for various contraints and re
 
 The worker threads in the ActionPool will catch all Exception objects that your block fails to catch. Instead of just eating these exceptions, they are passed back to the creating thread of the pool (generally the main thread). This is important to note if you care about processing unexpected exceptions and what allows the example code above to be woken up from its sleep.
 
-=== The internals
+== The internals
 ==== Probably more information than you really want
 
-ActionPool has some simple settings that make things work. First, the pool has a minimum and maximum number of allowed threads. On initialization, the
-minimum number of threads are created and put into the pool. By default, this is 10 threads. As the number of tasks added to the pool increases, the pool
-will grow as needed. When more tasks are in the pool than threads to process them, new threads will be added into the pool, until the maximum thread
-threshold is reached. Taking the example above, we can demonstrate this easily by adjusting our limits:
+ActionPool has some simple settings that make things work. First, the pool has a minimum and maximum number of allowed threads. On initialization, the minimum number of threads are created and put into the pool. By default, this is 10 threads. As the number of tasks added to the pool increases, the pool will grow as needed. When more tasks are in the pool than threads to process them, new threads will be added into the pool, until the maximum thread threshold is reached. Taking the example above, we can demonstrate this easily by adjusting our limits:
 
     require 'actionpool'
 
@@ -124,13 +121,9 @@ Which results in:
     Thread: #<Thread:0x86c1080>
     Thread pool woke me up: Wakeup main thread
 
-Our pool starts with a single thread that is occupied by the sleeping task waiting to raise an exception. As we begin to add new tasks, the pool grows to
-accommidate the growing number of tasks, until it reaches the maximum threshold of 3. At that point, the pool simply processes the tasks until the task
-list is empty.
+Our pool starts with a single thread that is occupied by the sleeping task waiting to raise an exception. As we begin to add new tasks, the pool grows to accommidate the growing number of tasks, until it reaches the maximum threshold of 3. At that point, the pool simply processes the tasks until the task list is empty.
 
-The pool also has the ability to limit the amount of time a thread spends working on a given task. By default, a thread will work on a given task until
-the task is completed, or the pool is shutdown. However, as the following example shows, it is very easy to limit this time to avoid the pool being
-bogged down on long running tasks:
+The pool also has the ability to limit the amount of time a thread spends working on a given task. By default, a thread will work on a given task until the task is completed, or the pool is shutdown. However, as the following example shows, it is very easy to limit this time to avoid the pool being bogged down on long running tasks:
 
     require 'actionpool'
 
@@ -156,7 +149,25 @@ Results:
     2009-10-10 08:47:09 -0700: Waiting for my turn
     Thread pool woke me up: I'm waking up the main thread
 
+If you have a number of tasks you would like to schedule at once, it is easy with the add_jobs method:
 
+    require 'actionpool'
+
+    pool = ActionPool::Pool.new
+    a = 0
+    lock = Mutex.new
+    tasks = [].fill(lambda{ lock.synchronize{ a += 1 } }, 0..19)
+    pool.add_jobs(tasks)
+    sleep(0.5)
+    puts "Result: #{a}"
+
+Results:
+
+    Result: 20
+
+=== Footer
+
+I hope this library is useful. If you find any bugs, or need any help, you can find me on DALnet and Freenode.
 
 == License
 
