@@ -23,9 +23,8 @@ module ActionPool
         end
         # Check if queue needs to wait before returning
         def pop
-            val = super
             @lock.synchronize{ @guard.wait(@lock) } if @wait
-            val
+            super
         end
     end
 end
