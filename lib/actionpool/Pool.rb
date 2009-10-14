@@ -61,7 +61,6 @@ module ActionPool
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << action
             create_thread if @queue.length > 0 && @queue.num_waiting < 1 # only start a new thread if we need it
-            nil
         end
 
         # jobs:: Array of proc/lambdas
@@ -72,9 +71,10 @@ module ActionPool
             begin
                 jobs.each do |job|
                     raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda') unless job.is_a?(Proc)
-                    queue(job)
+                    @queue << job
                 end
             ensure
+                while(create_thread)do;end; # make sure we get our pool population up
                 @queue.unpause
             end
             true
