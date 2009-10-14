@@ -48,17 +48,17 @@ module ActionPool
             nil
         end
 
-        # action:: proc to be executed
+        # action:: proc to be executed or array of [proc, [*args]]
         # Add a new proc/lambda to be executed (alias for queue)
         def <<(action)
             case action
-            when Proc
-                queue(action)
-            when Array
-                raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless action.size == 2 and action[0].is_a?(Proc) and action[1].is_a?(Array)
-                queue(*action.flatten(1))
-            else
-                raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
+                when Proc
+                    queue(action)
+                when Array
+                    raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless action.size == 2 and action[0].is_a?(Proc) and action[1].is_a?(Array)
+                    queue(*action.flatten(1))
+                else
+                    raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
             end
             nil
         end
@@ -89,7 +89,9 @@ module ActionPool
                     end
                 end
             ensure
-                while(create_thread)do;end; # make sure we get our pool population up
+                while(size < action_size) do
+                    create_thread
+                end # make sure we get our pool population up
                 @queue.unpause
             end
             true
