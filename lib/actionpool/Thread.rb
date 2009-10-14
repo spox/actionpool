@@ -44,7 +44,7 @@ module ActionPool
                         else
                             action = @pool.action
                         end
-                        run(action) unless action.nil?
+                        run(*action) unless action.nil?
                     rescue Timeout::Error => boom
                         @kill = true
                     rescue Exception => boom
@@ -61,14 +61,14 @@ module ActionPool
             end
         end
 
-        def run(action)
+        def run(action, args)
             begin
                 if(@action_timeout > 0)
                     Timeout::timeout(@action_timeout) do
-                        action.call
+                        action.call(*args)
                     end
                 else
-                    action.call
+                    action.call(*args)
                 end
             rescue Timeout::Error => boom
                 @logger.warn("Pool thread reached max execution time for action: #{boom}")

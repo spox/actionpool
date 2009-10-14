@@ -51,15 +51,23 @@ module ActionPool
         # action:: proc to be executed
         # Add a new proc/lambda to be executed (alias for queue)
         def <<(action)
-            queue(action)
+            case action
+            when Proc
+                queue(action)
+            when Array
+                raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless job.size == 2 and job[0].is_a?(Proc) and job[1].is_a?(Array)
+                queue(*action.flatten(1))
+            else
+                raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
+            end
             nil
         end
 
         # action:: proc to be executed
         # Add a new proc/lambda to be executed
-        def queue(action)
+        def queue(action, *args)
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
-            @queue << action
+            @queue << [action, args]
             create_thread if @queue.length > 0 && @queue.num_waiting < 1 # only start a new thread if we need it
         end
 
@@ -70,8 +78,15 @@ module ActionPool
             @queue.pause
             begin
                 jobs.each do |job|
-                    raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda') unless job.is_a?(Proc)
-                    @queue << job
+                    case job
+                    when Proc
+                        @queue << [job, []]
+                    when Array
+                        raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless job.size == 2 and job[0].is_a?(Proc) and job[1].is_a?(Array)
+                        @queue << job
+                    else
+                        raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
+                    end
                 end
             ensure
                 while(create_thread)do;end; # make sure we get our pool population up
@@ -82,8 +97,8 @@ module ActionPool
 
         # block:: block to process
         # Adds a block to be processed
-        def process(&block)
-            queue(block)
+        def process(*args, &block)
+            queue(block, *args)
             nil
         end
 
