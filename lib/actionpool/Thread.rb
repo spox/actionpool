@@ -27,6 +27,7 @@ module ActionPool
         def stop(force=false)
             @kill = true
             @thread.kill if force || @waiting
+            @thread.join
             nil
         end
 
