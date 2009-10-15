@@ -17,6 +17,7 @@ module ActionPool
             @logger = LogHelper.new(args[:logger])
             @queue = ActionPool::Queue.new
             @threads = []
+            @lock = Mutex.new
             @thread_timeout = args[:t_to] ? args[:t_to] : 60
             @action_timeout = args[:a_to] ? args[:a_to] : nil
             @min_threads = args[:min_threads] ? args[:min_threads] : 10
@@ -29,12 +30,17 @@ module ActionPool
         # Create a new thread for pool. Returns newly created ActionPool::Thread or
         # nil if pool has reached maximum threads
         def create_thread(force=false)
-            return nil unless @threads.size < @max_threads || force
-            @logger.info('Pool is creating a new thread')
             pt = nil
-            ((min - size) > 0 ? (min - size) : 1).times do
-                pt = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
-                @threads << pt
+            @lock.synchronize do
+                if(@threads.size < @max_threads || force)
+                    @logger.info('Pool is creating a new thread')
+                    (min - size > 0 ? min - size : 1).times do |i|
+                        pt = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                        @threads << pt
+                    end
+                else
+                    @logger.info('Pool is at maximum size. Not creating new thread')
+                end
             end
             return pt
         end
@@ -69,7 +75,7 @@ module ActionPool
         def queue(action, *args)
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << [action, args]
-            create_thread if @queue.length > 0 && @queue.num_waiting < 1 # only start a new thread if we need it
+            create_thread unless @threads.find{|t|t.waiting?} # only start a new thread if we need it
         end
 
         # jobs:: Array of proc/lambdas
@@ -90,9 +96,7 @@ module ActionPool
                     end
                 end
             ensure
-                while(size < action_size) do
-                    create_thread
-                end # make sure we get our pool population up
+                create_thread
                 @queue.unpause
             end
             true
@@ -168,7 +172,7 @@ module ActionPool
         # t:: timeout in seconds (nil for infinite)
         # Set maximum allowed time thead may idle in pool
         def thread_timeout=(t)
-            t = to_i unless t.nil?
+            t = t.to_i unless t.nil?
             raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
             @thread_timeout = t
             t
@@ -178,7 +182,7 @@ module ActionPool
         # Set maximum allowed time thread may work
         # on a given action
         def action_timeout=(t)
-            t = to_i unless t.nil?
+            t = t.to_i unless t.nil?
             raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
             @action_timeout = t
             t
