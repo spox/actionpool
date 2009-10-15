@@ -165,9 +165,9 @@ Results:
 
     Result: 20
 
-=== Footer
+== Last remarks
 
-I hope this library is useful. If you find any bugs, or need any help, you can find me on DALnet and Freenode.
+If you find any bugs, please report them through {github}[http://github.com/spox/actionpool/issues]. If you are in need of any help, you can generally find me on DALnet and Freenode.
 
 == License
 
