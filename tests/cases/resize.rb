@@ -3,7 +3,8 @@ class ResizePoolTest < Test::Unit::TestCase
         @pool = ActionPool::Pool.new
     end
     def test_resize
-        500.times{ @pool << lambda{sleep(0.01)} }
+        500.times{ @pool << lambda{sleep(0.1)} }
+        sleep(0.5)
         assert_equal(100, @pool.size)
         @pool.max = 10
         sleep(0.2) # allow some cleanup time
