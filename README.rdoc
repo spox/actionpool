@@ -158,12 +158,29 @@ If you have a number of tasks you would like to schedule at once, it is easy wit
     lock = Mutex.new
     tasks = [].fill(lambda{ lock.synchronize{ a += 1 } }, 0..19)
     pool.add_jobs(tasks)
-    sleep(0.5)
+    pool.shutdown
     puts "Result: #{a}"
 
 Results:
 
     Result: 20
+
+Passing arguments to tasks is now available as well:
+
+    require 'actionpool'
+
+    pool = ActionPool::Pool.new
+    string = 'Hello world'
+    puts "Original: #{string}. ID: #{string.object_id}"
+    pool << [lambda{|var| puts "Passed: #{var}. ID: #{var.object_id}"}, [string.dup]]
+    pool << [lambda{|a,b| puts "Passed: #{a} | #{b}. ID: #{a.object_id} | #{b.object_id}"}, [string, string.dup]]
+    pool.shutdown
+
+Results:
+
+    Original: Hello world. ID: 70651630
+    Passed: Hello world. ID: 70651250
+    Passed: Hello world | Hello world. ID: 70651630 | 70651100
 
 == Last remarks
 
