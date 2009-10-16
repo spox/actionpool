@@ -48,9 +48,11 @@ module ActionPool
         # force:: force immediate stop
         # Stop the pool
         def shutdown(force=false)
+            args = [:wait]
+            args += [:force] if force
             @logger.info("Pool is now shutting down #{force ? 'using force' : ''}")
             while(t = @threads.pop) do
-                t.stop(force)
+                t.stop(*args)
             end
             nil
         end
@@ -146,6 +148,8 @@ module ActionPool
         # t:: ActionPool::Thread to remove
         # Removes a thread from the pool
         def remove(t)
+            raise ArgumentError.new('Expecting an ActionPool::Thread object') unless t.is_a?(ActionPool::Thread)
+            t.stop
             if(@threads.include?(t))
                 @threads.delete(t)
                 return true
@@ -172,9 +176,10 @@ module ActionPool
         # t:: timeout in seconds (nil for infinite)
         # Set maximum allowed time thead may idle in pool
         def thread_timeout=(t)
-            t = t.to_i unless t.nil?
-            raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
+            t = t.to_f
+            raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
             @thread_timeout = t
+            @threads.each{|thread|thread.thread_timeout = t}
             t
         end
 
@@ -182,9 +187,10 @@ module ActionPool
         # Set maximum allowed time thread may work
         # on a given action
         def action_timeout=(t)
-            t = t.to_i unless t.nil?
-            raise ArgumentError.new('Value must be great than zero or nil') unless t.nil? || t > 0
+            t = t.to_f
+            raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
             @action_timeout = t
+            @threads.each{|thread|thread.action_timeout = t}
             t
         end
 
