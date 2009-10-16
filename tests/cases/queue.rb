@@ -19,6 +19,5 @@ class QueueTest < Test::Unit::TestCase
         assert(@queue.empty?)
         assert_equal(3, output.size)
         3.times{|i|assert(output.include?(i))}
-        @pool.shutdown(true)
     end
 end
