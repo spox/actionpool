@@ -19,7 +19,7 @@ module ActionPool
         # will have results given to them.
         def unpause
             @wait = false
-            @lock.synchronize{ @guard.signal }
+            @lock.synchronize{ @guard.broadcast }
         end
         # Check if queue needs to wait before returning
         def pop
