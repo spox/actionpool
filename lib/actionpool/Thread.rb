@@ -1,6 +1,7 @@
 require 'timeout'
 
 module ActionPool
+
     class Thread
         # :pool:: pool thread is associated with
         # :t_timeout:: max time a thread is allowed to wait for action
@@ -14,25 +15,51 @@ module ActionPool
             raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
             @pool = args[:pool]
             @respond_to = args[:respond_thread]
-            @thread_timeout = args[:t_timeout] ? args[:t_timeout] : 0
-            @action_timeout = args[:a_timeout] ? args[:a_timeout] : 0
+            @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 0
+            @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 0
             @kill = false
             @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
-            @waiting = false
             @thread = ::Thread.new{ start_thread }
         end
 
-        # force:: force the thread to stop
+        # :force:: force the thread to stop
+        # :wait:: wait for the thread to stop
         # Stop the thread
-        def stop(force=false)
+        def stop(*args)
             @kill = true
-            @thread.kill if force || @waiting
-            @thread.join
+            @thread.kill if args.include?(:force) || waiting?
+            @thread.join if args.include?(:wait)
             nil
         end
 
+        def alive?
+            @thread.alive?
+        end
+
         def waiting?
-            @waiting
+            @thread.status == 'sleep'
+        end
+
+        def thread_timeout
+            @thread_timeout
+        end
+
+        def action_timeout
+            @action_timeout
+        end
+
+        def thread_timeout=(t)
+            t = t.to_f
+            raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
+            @thread_timeout = t
+            t
+        end
+
+        def action_timeout=(t)
+            t = t.to_f
+            raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
+            @action_timeout = t
+            t
         end
 
         private
@@ -45,14 +72,10 @@ module ActionPool
                         action = nil
                         if(@pool.size > @pool.min)
                             Timeout::timeout(@thread_timeout) do
-                                @waiting = true
                                 action = @pool.action
-                                @waiting = false
                             end
                         else
-                            @waiting = true
                             action = @pool.action
-                            @waiting = false
                         end
                         run(*action) unless action.nil?
                     rescue Timeout::Error => boom
