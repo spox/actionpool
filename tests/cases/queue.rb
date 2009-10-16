@@ -19,5 +19,12 @@ class QueueTest < Test::Unit::TestCase
         assert(@queue.empty?)
         assert_equal(3, output.size)
         3.times{|i|assert(output.include?(i))}
+        @queue << 1
+        output = nil
+        Thread.new{@queue.wait_empty; output = true}
+        assert_nil(output)
+        @queue.pop
+        Thread.pass
+        assert(output)
     end
 end
