@@ -1,0 +1,5 @@
+0.2.0
+    - Added argument support for passed tasks (thanks simonmenke)
+    - Faster pool resizing
+    - Smarter thread creation to limit unneeded creation
+    - Allow floats for timeouts to provide better control
