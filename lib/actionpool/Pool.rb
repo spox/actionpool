@@ -19,7 +19,7 @@ module ActionPool
             @threads = []
             @lock = Mutex.new
             @thread_timeout = args[:t_to] ? args[:t_to] : 60
-            @action_timeout = args[:a_to] ? args[:a_to] : nil
+            @action_timeout = args[:a_to] ? args[:a_to] : 10
             @min_threads = args[:min_threads] ? args[:min_threads] : 10
             @max_threads = args[:max_threads] ? args[:max_threads] : 100
             @respond_to = ::Thread.current
@@ -51,6 +51,7 @@ module ActionPool
             args = [:wait]
             args += [:force] if force
             @logger.info("Pool is now shutting down #{force ? 'using force' : ''}")
+            @queue.wait_empty
             while(t = @threads.pop) do
                 t.stop(*args)
             end

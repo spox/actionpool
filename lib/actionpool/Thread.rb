@@ -15,8 +15,8 @@ module ActionPool
             raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
             @pool = args[:pool]
             @respond_to = args[:respond_thread]
-            @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 0
-            @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 0
+            @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 10
+            @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 10
             @kill = false
             @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
             @thread = ::Thread.new{ start_thread }
@@ -28,7 +28,17 @@ module ActionPool
         def stop(*args)
             @kill = true
             @thread.kill if args.include?(:force) || waiting?
-            @thread.join if args.include?(:wait)
+            # killing the thread if it is waiting? is a simple race condition
+            # in that, if the thread has just finished a task, but hasn't
+            # dropped by the queue line yet, we will see it as not waiting. we
+            # can counter that by waiting just a little bit longer than the allowed
+            # time to work on an action, and kill the thread if it is still around
+            if(args.include?(:wait))
+                unless(@thread.join(@action_timeout + 0.01))
+                    @thread.kill
+                    @thread.join
+                end
+            end
             nil
         end
 
