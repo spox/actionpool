@@ -18,8 +18,8 @@ module ActionPool
             @queue = ActionPool::Queue.new
             @threads = []
             @lock = Mutex.new
-            @thread_timeout = args[:t_to] ? args[:t_to] : 60
-            @action_timeout = args[:a_to] ? args[:a_to] : 10
+            @thread_timeout = args[:t_to] ? args[:t_to] : 0
+            @action_timeout = args[:a_to] ? args[:a_to] : 0
             @min_threads = args[:min_threads] ? args[:min_threads] : 10
             @max_threads = args[:max_threads] ? args[:max_threads] : 100
             @respond_to = ::Thread.current
@@ -206,8 +206,21 @@ module ActionPool
             @queue.size
         end
 
+        # Flush the thread pool. Mainly used for forcibly resizing
+        # the pool if existing threads have a long thread life waiting
+        # for input.
+        def flush
+            lock = Mutex.new
+            guard = ConditionVariable.new
+            @threads.size.times{ queue{ lock.synchronize{ guard.wait(lock) } } }
+            Thread.pass
+            sleep(0.01)
+            lock.synchronize{ guard.broadcast }
+        end
+
         private
-        
+
+        # Resize the pool
         def resize
             @logger.info("Pool is being resized to stated maximum: #{max}")
             until(size <= max) do
@@ -216,6 +229,7 @@ module ActionPool
                 t = @threads.shift unless t
                 t.stop
             end
+            flush
             nil
         end
     end
