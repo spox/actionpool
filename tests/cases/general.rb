@@ -9,8 +9,8 @@ class GeneralPoolTest < Test::Unit::TestCase
         assert_equal(10, @pool.size)
         assert_equal(10, @pool.min)
         assert_equal(100, @pool.max)
-        assert_equal(10, @pool.action_timeout)
-        assert_equal(60, @pool.thread_timeout)
+        assert_equal(0, @pool.action_timeout)
+        assert_equal(0, @pool.thread_timeout)
         assert_equal(0, @pool.action_size)
     end
     def test_output
@@ -33,6 +33,10 @@ class GeneralPoolTest < Test::Unit::TestCase
         assert(2, output)
         @pool.add_jobs([[lambda{|x| output = x}, [3]]])
         assert(3, output)
+        output = []
+        @pool.add_jobs([[lambda{|x,y| output << x + y}, [1,1]], [lambda{|x| output << x}, [3]]])
+        assert(output.include?(2))
+        assert(output.include?(3))
         @pool.shutdown(true)
     end
 end
