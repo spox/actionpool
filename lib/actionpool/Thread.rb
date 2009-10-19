@@ -15,8 +15,8 @@ module ActionPool
             raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
             @pool = args[:pool]
             @respond_to = args[:respond_thread]
-            @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 10
-            @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 10
+            @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 0
+            @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 0
             @kill = false
             @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
             @thread = ::Thread.new{ start_thread }
@@ -42,22 +42,28 @@ module ActionPool
             nil
         end
 
+        # Is the thread still alive
         def alive?
             @thread.alive?
         end
 
+        # Is the thread currently waiting for input
         def waiting?
             @thread.status == 'sleep'
         end
 
+        # Seconds thread will wait for input
         def thread_timeout
             @thread_timeout
         end
 
+        # Seconds thread will spend working on a given task
         def action_timeout
             @action_timeout
         end
 
+        # t:: seconds to wait for input (floats allow for values 0 < t < 1)
+        # Set the maximum amount of time to wait for a task
         def thread_timeout=(t)
             t = t.to_f
             raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
@@ -65,6 +71,8 @@ module ActionPool
             t
         end
 
+        # t:: seconds to work on a task (floats allow for values 0 < t < 1)
+        # Set the maximum amount of time to work on a given task
         def action_timeout=(t)
             t = t.to_f
             raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
@@ -74,6 +82,7 @@ module ActionPool
 
         private
 
+        # Start our thread
         def start_thread
             begin
                 @logger.info("New pool thread is starting (#{self})")
@@ -104,6 +113,9 @@ module ActionPool
             end
         end
 
+        # action:: task to be run
+        # args:: arguments to be passed to task
+        # Run the task
         def run(action, args)
             begin
                 if(@action_timeout > 0)
