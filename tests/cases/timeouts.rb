@@ -1,3 +1,6 @@
+require 'actionpool'
+require 'test/unit'
+
 class TimeoutPoolTest < Test::Unit::TestCase
     def setup
         @pool = ActionPool::Pool.new

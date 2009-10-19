@@ -1,3 +1,6 @@
+require 'actionpool'
+require 'test/unit'
+
 class QueueTest < Test::Unit::TestCase
     def setup
         @queue = ActionPool::Queue.new

@@ -1,3 +1,6 @@
+require 'actionpool'
+require 'test/unit'
+
 class GrowPoolTest < Test::Unit::TestCase
     def setup
         @pool = ActionPool::Pool.new
@@ -6,10 +9,12 @@ class GrowPoolTest < Test::Unit::TestCase
         jobs = [].fill(lambda{}, 0..99)
         @pool.add_jobs(jobs)
         assert(@pool.size > 10)
+        @pool.shutdown(true)
     end
     def test_max
         @pool.create_thread(true) until @pool.size > @pool.max
         assert_nil(@pool.create_thread)
         assert(@pool.create_thread(true))
+        @pool.shutdown(true)
     end
 end

@@ -1,3 +1,6 @@
+require 'actionpool'
+require 'test/unit'
+
 class NoGrowPoolTest < Test::Unit::TestCase
     def setup
         @pool = ActionPool::Pool.new

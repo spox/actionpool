@@ -1,3 +1,6 @@
+require 'actionpool'
+require 'test/unit'
+
 class GeneralPoolTest < Test::Unit::TestCase
     def setup
         @pool = ActionPool::Pool.new
@@ -22,6 +25,7 @@ class GeneralPoolTest < Test::Unit::TestCase
         @pool.add_jobs(jobs)
         @pool.shutdown
         assert_equal(100, a)
+        @pool.shutdown(true)
     end
     def test_args
         output = nil
@@ -29,5 +33,6 @@ class GeneralPoolTest < Test::Unit::TestCase
         assert(2, output)
         @pool.add_jobs([[lambda{|x| output = x}, [3]]])
         assert(3, output)
+        @pool.shutdown(true)
     end
 end

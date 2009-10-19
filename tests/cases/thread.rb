@@ -1,3 +1,6 @@
+require 'actionpool'
+require 'test/unit'
+
 class ThreadTest < Test::Unit::TestCase
     def setup
         @pool = ActionPool::Pool.new(:min_threads => 1, :max_threads => 1)
