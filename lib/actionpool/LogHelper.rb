@@ -1,9 +1,8 @@
-require 'logger'
-
 module ActionPool
     class LogHelper
     
         def initialize(logger=nil)
+            require 'logger'
             @logger = logger
         end
 
