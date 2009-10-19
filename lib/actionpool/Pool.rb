@@ -66,7 +66,7 @@ module ActionPool
                     queue(action)
                 when Array
                     raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless action.size == 2 and action[0].is_a?(Proc) and action[1].is_a?(Array)
-                    queue(*action.flatten(1))
+                    queue(*action.flatten)
                 else
                     raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
             end
@@ -78,7 +78,8 @@ module ActionPool
         def queue(action, *args)
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << [action, args]
-            create_thread unless @threads.find{|t|t.waiting?} # only start a new thread if we need it
+            ::Thread.pass
+            create_thread if @queue.num_waiting < 1 # only start a new thread if we need it
         end
 
         # jobs:: Array of proc/lambdas
