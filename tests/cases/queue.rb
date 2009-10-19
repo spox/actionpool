@@ -28,6 +28,7 @@ class QueueTest < Test::Unit::TestCase
         assert_nil(output)
         @queue.pop
         Thread.pass
+        sleep(0.01)
         assert(output)
     end
 end
