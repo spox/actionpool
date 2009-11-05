@@ -1,3 +1,6 @@
+0.2.1
+    - Set minimum pool size properly when initialized to avoid
+      creating extra threads (thanks to Roger Pack)
 0.2.0
     - Added argument support for passed tasks (thanks simonmenke)
     - Faster pool resizing
