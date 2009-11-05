@@ -20,8 +20,9 @@ module ActionPool
             @lock = Mutex.new
             @thread_timeout = args[:t_to] ? args[:t_to] : 0
             @action_timeout = args[:a_to] ? args[:a_to] : 0
-            @min_threads = args[:min_threads] ? args[:min_threads] : 10
             @max_threads = args[:max_threads] ? args[:max_threads] : 100
+            @min_threads = args[:min_threads] ? args[:min_threads] : 10
+            @min_threads = @max_threads if @max_threads < @min_threads
             @respond_to = ::Thread.current
             create_thread
         end
@@ -134,6 +135,7 @@ module ActionPool
             m = m.to_i
             raise ArgumentError.new('Maximum value must be greater than 0') unless m > 0
             @max_threads = m
+            @min_threads = m if m < @min_threads
             resize if m < size
             m
         end
