@@ -4,6 +4,9 @@ require 'actionpool/LogHelper'
 require 'thread'
 
 module ActionPool
+    # Raised when pool is closed
+    class PoolClosed < StandardError
+    end
     class Pool
 
         # :min_threads:: minimum number of threads in pool
@@ -23,14 +26,32 @@ module ActionPool
             @max_threads = args[:max_threads] ? args[:max_threads] : 100
             @min_threads = args[:min_threads] ? args[:min_threads] : 10
             @min_threads = @max_threads if @max_threads < @min_threads
-            @respond_to = ::Thread.current
+            @respond_to = args[:respond_thread] || ::Thread.current
+            @open = true
             create_thread
+        end
+
+        # Pool is closed
+        def pool_closed?
+            !@open
+        end
+
+        # Pool is open
+        def pool_open?
+            @open
+        end
+
+        # arg:: :open or :closed
+        # Set pool status
+        def status(arg)
+            @open = arg == :open
         end
 
         # force:: force creation of a new thread
         # Create a new thread for pool. Returns newly created ActionPool::Thread or
         # nil if pool has reached maximum threads
         def create_thread(force=false)
+            return if pool_closed?
             pt = nil
             @lock.synchronize do
                 if(@threads.size < @max_threads || force)
@@ -62,12 +83,13 @@ module ActionPool
         # action:: proc to be executed or array of [proc, [*args]]
         # Add a new proc/lambda to be executed (alias for queue)
         def <<(action)
+            raise PoolClosed.new("Pool #{self} is currently closed") if pool_closed?
             case action
                 when Proc
                     queue(action)
                 when Array
                     raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless action.size == 2 and action[0].is_a?(Proc) and action[1].is_a?(Array)
-                    queue(*action.flatten)
+                    queue(action[0], action[1])
                 else
                     raise ArgumentError.new('Actions to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
             end
@@ -95,7 +117,7 @@ module ActionPool
                         @queue << [job, []]
                     when Array
                         raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]') unless job.size == 2 and job[0].is_a?(Proc) and job[1].is_a?(Array)
-                        @queue << job
+                        @queue << [job.shift, job]
                     else
                         raise ArgumentError.new('Jobs to be processed by the pool must be a proc/lambda or [proc/lambda, [*args]]')
                     end
