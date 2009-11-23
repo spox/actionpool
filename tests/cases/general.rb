@@ -33,6 +33,8 @@ class GeneralPoolTest < Test::Unit::TestCase
         assert(2, output)
         @pool.add_jobs([[lambda{|x| output = x}, [3]]])
         assert(3, output)
+        @pool << [lambda{|x,y| output = x+y}, [1,2]]
+        assert(3, output)
         output = []
         @pool.add_jobs([[lambda{|x,y| output << x + y}, [1,1]], [lambda{|x| output << x}, [3]]])
         assert(output.include?(2))
