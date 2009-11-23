@@ -7,32 +7,40 @@ module ActionPool
         def initialize
             super
             @wait = false
-            @lock = Mutex.new
-            @guard = ConditionVariable.new
-            @elock = Mutex.new
-            @eguard = ConditionVariable.new
+            @pause_lock = Mutex.new
+            @empty_lock = Mutex.new
+            @pause_guard = ConditionVariable.new
+            @empty_guard = ConditionVariable.new
         end
         # Stop the queue from returning results to requesting
         # threads. Threads will wait for results until signalled
         def pause
-            @wait = true
+            @pause_lock.synchronize{@wait = true}
         end
         # Allow the queue to return results. Any threads waiting
         # will have results given to them.
         def unpause
-            @wait = false
-            @lock.synchronize{ @guard.broadcast }
+            @pause_lock.synchronize do
+                @wait = false
+                @pause_guard.broadcast
+            end
         end
         # Check if queue needs to wait before returning
         def pop
-            @lock.synchronize{ @guard.wait(@lock) } if @wait
+            @pause_lock.synchronize do
+                @pause_guard.wait(@pause_lock) if @wait
+            end
             o = super
-            @elock.synchronize{ @eguard.broadcast } if empty?
+            @empty_lock.synchronize do
+                @empty_guard.broadcast if empty?
+            end
             return o
         end
         # Park a thread here until queue is empty
         def wait_empty
-            @elock.synchronize{ @eguard.wait(@elock) } if size > 0
+            @empty_lock.synchronize do
+                @empty_guard.wait(@empty_lock) if size > 0
+            end
         end
     end
 end
