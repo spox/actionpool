@@ -1,6 +1,9 @@
 require 'timeout'
 
 module ActionPool
+    # Exception class used for waking up a thread
+    class Wakeup < StandardError
+    end
 
     class Thread
         # :pool:: pool thread is associated with
@@ -19,6 +22,7 @@ module ActionPool
             @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 0
             @kill = false
             @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
+            @lock = Mutex.new
             @thread = ::Thread.new{ start_thread }
         end
 
@@ -27,19 +31,13 @@ module ActionPool
         # Stop the thread
         def stop(*args)
             @kill = true
-            @thread.kill if args.include?(:force) || waiting?
-            # killing the thread if it is waiting? is a simple race condition
-            # in that, if the thread has just finished a task, but hasn't
-            # dropped by the queue line yet, we will see it as not waiting. we
-            # can counter that by waiting just a little bit longer than the allowed
-            # time to work on an action, and kill the thread if it is still around
-            if(args.include?(:wait))
-                unless(@thread.join(@action_timeout + 0.01))
-                    @thread.kill
-                    @thread.join
-                end
-            end
+            @thread.raise Wakeup.new if args.include?(:force) || waiting?
             nil
+        end
+
+        # Currently waiting
+        def waiting?
+            @status == :wait
         end
 
         # Is the thread still alive
@@ -47,9 +45,16 @@ module ActionPool
             @thread.alive?
         end
 
-        # Is the thread currently waiting for input
-        def waiting?
-            @thread.status == 'sleep'
+        # Current thread status
+        def status
+            @lock.synchronize{ return @status }
+        end
+        
+        # arg:: :wait or :run
+        # Set current status
+        def status(arg)
+            raise InvalidType.new('Status can only be set to :wait or :run') unless arg == :wait || arg == :run
+            @lock.synchronize{ @status = arg }
         end
 
         # Seconds thread will wait for input
@@ -87,6 +92,7 @@ module ActionPool
             begin
                 @logger.info("New pool thread is starting (#{self})")
                 until(@kill) do
+                    status(:wait)
                     begin
                         action = nil
                         if(@pool.size > @pool.min)
@@ -96,20 +102,27 @@ module ActionPool
                         else
                             action = @pool.action
                         end
-                        run(*action) unless action.nil?
+                        status(:run)
+                        run(action[0], action[1]) unless action.nil?
+                        status(:wait)
                     rescue Timeout::Error => boom
                         @kill = true
+                    rescue Wakeup
+                        @logger.info("Thread #{::Thread.current} was woken up.")
                     rescue Exception => boom
                         @logger.error("Pool thread caught an exception: #{boom}\n#{boom.backtrace.join("\n")}")
                         @respond_to.raise boom
                     end
                 end
+            rescue Wakeup
+                @logger.info("Thread #{::Thread.current} was woken up.")
             rescue Exception => boom
                 @logger.error("Pool thread caught an exception: #{boom}\n#{boom.backtrace.join("\n")}")
                 @respond_to.raise boom
             ensure
                 @logger.info("Pool thread is shutting down (#{self})")
                 @pool.remove(self)
+                @pool.create_threads
             end
         end
 
@@ -120,10 +133,10 @@ module ActionPool
             begin
                 if(@action_timeout > 0)
                     Timeout::timeout(@action_timeout) do
-                        action.call(*args)
+                        action.call(*args[0])
                     end
                 else
-                    action.call(*args)
+                    action.call(*args[0])
                 end
             rescue Timeout::Error => boom
                 @logger.warn("Pool thread reached max execution time for action: #{boom}")
