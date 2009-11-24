@@ -70,8 +70,9 @@ module ActionPool
         # force:: force immediate stop
         # Stop the pool
         def shutdown(force=false)
-            args = [:wait]
-            args += [:force] if force
+            status(:closed)
+            args = []
+            args.push(:force) if force
             @logger.info("Pool is now shutting down #{force ? 'using force' : ''}")
             @queue.wait_empty
             while(t = @threads.pop) do
@@ -83,7 +84,6 @@ module ActionPool
         # action:: proc to be executed or array of [proc, [*args]]
         # Add a new proc/lambda to be executed (alias for queue)
         def <<(action)
-            raise PoolClosed.new("Pool #{self} is currently closed") if pool_closed?
             case action
                 when Proc
                     queue(action)
@@ -99,15 +99,17 @@ module ActionPool
         # action:: proc to be executed
         # Add a new proc/lambda to be executed
         def queue(action, *args)
+            raise PoolClosed.new("Pool #{self} is currently closed") if pool_closed?
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << [action, args]
             ::Thread.pass
-            create_thread if @queue.num_waiting < 1 # only start a new thread if we need it
+            create_thread if @queue.num_waiting > 0 # only start a new thread if we need it
         end
 
         # jobs:: Array of proc/lambdas
         # Will queue a list of jobs into the pool
         def add_jobs(jobs)
+            raise PoolClosed.new("Pool #{self} is currently closed") if pool_closed?
             raise ArgumentError.new("Expecting an array but received: #{jobs.class}") unless jobs.is_a?(Array)
             @queue.pause
             begin
