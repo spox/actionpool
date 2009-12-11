@@ -39,7 +39,7 @@ module ActionPool
 
         # Currently waiting
         def waiting?
-            @status == :wait
+            @lock.synchronize{@status} == :wait
         end
 
         # Is the thread still alive
