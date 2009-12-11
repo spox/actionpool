@@ -36,6 +36,13 @@ module ActionPool
             end
             return o
         end
+        # Clear queue
+        def clear
+            super
+            @empty_lock.synchronize do
+                @empty_guard.broadcast
+            end
+        end
         # Park a thread here until queue is empty
         def wait_empty
             @empty_lock.synchronize do
