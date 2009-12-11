@@ -5,6 +5,9 @@ class GeneralPoolTest < Test::Unit::TestCase
     def setup
         @pool = ActionPool::Pool.new
     end
+    def teardown
+        @pool.shutdown(true)
+    end
     def test_numbers
         assert_equal(10, @pool.size)
         assert_equal(10, @pool.min)
@@ -20,6 +23,7 @@ class GeneralPoolTest < Test::Unit::TestCase
         100.times{ @pool << run }
         @pool.shutdown
         assert_equal(100, a)
+        @pool.status :open
         a = 0
         jobs = [].fill(run,0,100)
         @pool.add_jobs(jobs)
@@ -28,6 +32,7 @@ class GeneralPoolTest < Test::Unit::TestCase
         @pool.shutdown(true)
     end
     def test_args
+        @pool.status :open
         output = nil
         @pool << [lambda{|x| output = x}, [2]]
         assert(2, output)
