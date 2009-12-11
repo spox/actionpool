@@ -4,7 +4,9 @@ module ActionPool
     # Exception class used for waking up a thread
     class Wakeup < StandardError
     end
-
+    # Raised within a thread when the timeout is changed
+    class Retimeout < StandardError
+    end
     class Thread
         # :pool:: pool thread is associated with
         # :t_timeout:: max time a thread is allowed to wait for action
@@ -73,11 +75,13 @@ module ActionPool
             t = t.to_f
             raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
             @thread_timeout = t
+            @thread.raise Retimeout.new if waiting?
             t
         end
 
         # t:: seconds to work on a task (floats allow for values 0 < t < 1)
         # Set the maximum amount of time to work on a given task
+        # Note: Modification of this will not affect actions already in process
         def action_timeout=(t)
             t = t.to_f
             raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
@@ -95,7 +99,7 @@ module ActionPool
                     status(:wait)
                     begin
                         action = nil
-                        if(@pool.size > @pool.min)
+                        if(@pool.size > @pool.min && !@thread_timeout.zero?)
                             Timeout::timeout(@thread_timeout) do
                                 action = @pool.action
                             end
@@ -109,11 +113,16 @@ module ActionPool
                         @kill = true
                     rescue Wakeup
                         @logger.info("Thread #{::Thread.current} was woken up.")
+                    rescue Retimeout
+                        @logger.warn('Thread was woken up to reset thread timeout')
                     rescue Exception => boom
                         @logger.error("Pool thread caught an exception: #{boom}\n#{boom.backtrace.join("\n")}")
                         @respond_to.raise boom
                     end
                 end
+            rescue Retimeout
+                @logger.warn('Thread was woken up to reset thread timeout')
+                retry
             rescue Wakeup
                 @logger.info("Thread #{::Thread.current} was woken up.")
             rescue Exception => boom
@@ -122,7 +131,7 @@ module ActionPool
             ensure
                 @logger.info("Pool thread is shutting down (#{self})")
                 @pool.remove(self)
-                @pool.create_threads
+                @pool.create_thread
             end
         end
 
@@ -131,7 +140,7 @@ module ActionPool
         # Run the task
         def run(action, args)
             begin
-                if(@action_timeout > 0)
+                unless(@action_timeout.zero?)
                     Timeout::timeout(@action_timeout) do
                         action.call(*args[0])
                     end
