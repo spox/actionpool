@@ -28,7 +28,7 @@ module ActionPool
             @min_threads = @max_threads if @max_threads < @min_threads
             @respond_to = args[:respond_thread] || ::Thread.current
             @open = true
-            create_thread
+            fill_pool
         end
 
         # Pool is closed
@@ -45,26 +45,39 @@ module ActionPool
         # Set pool status
         def status(arg)
             @open = arg == :open
+            fill_pool if @open
         end
 
-        # force:: force creation of a new thread
-        # Create a new thread for pool. Returns newly created ActionPool::Thread or
-        # nil if pool has reached maximum threads
-        def create_thread(force=false)
+        # args:: :force forces a new thread. :nowait will create a thread if threads are waiting
+        # Create a new thread for pool.
+        # Returns newly created thread of nil if pool is at maximum size
+        def create_thread(*args)
             return if pool_closed?
-            pt = nil
+            thread = nil
             @lock.synchronize do
-                if(@threads.size < @max_threads || force)
-                    @logger.info('Pool is creating a new thread')
-                    (min - size > 0 ? min - size : 1).times do |i|
-                        pt = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
-                        @threads << pt
-                    end
-                else
-                    @logger.info('Pool is at maximum size. Not creating new thread')
+                if(((size == working || args.include?(:nowait)) && @threads.size < @max_threads) || args.include?(:force))
+                    thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                    @threads << thread
                 end
             end
-            return pt
+            return thread
+        end
+
+        # Fills the pool with the minimum number of threads
+        # Returns array of created threads
+        def fill_pool
+            threads = []
+            @lock.synchronize do
+                required = min - size
+                if(required > 0)
+                    required.times do
+                        thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                        @threads << thread
+                        threads << thread
+                    end
+                end
+            end
+            return threads
         end
 
         # force:: force immediate stop
@@ -74,6 +87,7 @@ module ActionPool
             args = []
             args.push(:force) if force
             @logger.info("Pool is now shutting down #{force ? 'using force' : ''}")
+            @queue.clear if force
             @queue.wait_empty
             while(t = @threads.pop) do
                 t.stop(*args)
@@ -103,7 +117,7 @@ module ActionPool
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
             @queue << [action, args]
             ::Thread.pass
-            create_thread if @queue.num_waiting > 0 # only start a new thread if we need it
+            create_thread
         end
 
         # jobs:: Array of proc/lambdas
@@ -125,7 +139,8 @@ module ActionPool
                     end
                 end
             ensure
-                create_thread
+                num = jobs.size - @threads.select{|t|t.waiting?}.size
+                num.times{ create_thread(:nowait) } if num > 0
                 @queue.unpause
             end
             true
@@ -205,7 +220,7 @@ module ActionPool
         # Set maximum allowed time thead may idle in pool
         def thread_timeout=(t)
             t = t.to_f
-            raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
+            raise ArgumentError.new('Value must be greater than zero or nil') unless t >= 0
             @thread_timeout = t
             @threads.each{|thread|thread.thread_timeout = t}
             t
@@ -216,7 +231,7 @@ module ActionPool
         # on a given action
         def action_timeout=(t)
             t = t.to_f
-            raise ArgumentError.new('Value must be great than zero or nil') unless t > 0
+            raise ArgumentError.new('Value must be greater than zero or nil') unless t >= 0
             @action_timeout = t
             @threads.each{|thread|thread.action_timeout = t}
             t
@@ -242,6 +257,11 @@ module ActionPool
             Thread.pass
             sleep(0.01)
             lock.synchronize{ guard.broadcast }
+        end
+
+        # Returns current number of threads in the pool working
+        def working
+            @threads.find_all{|t|!t.waiting?}.size
         end
 
         private
