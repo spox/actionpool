@@ -12,7 +12,6 @@ class TimeoutPoolTest < Test::Unit::TestCase
         @pool.action_timeout = 0.01
         assert_equal(10, @pool.size)
         stop = false
-        puts @pool.max
         @pool.add_jobs [].fill(lambda{loop{ 1+1 }}, 0, 20)
         ::Thread.pass
         assert(@pool.working > 10)
@@ -28,7 +27,7 @@ class TimeoutPoolTest < Test::Unit::TestCase
         guard = ConditionVariable.new
         @pool.add_jobs [].fill(lambda{ lock.synchronize{ guard.wait(lock) } }, 0, 20)
         ::Thread.pass
-        #assert_equal(20, @pool.size)
+        assert_equal(30, @pool.size)
         lock.synchronize{ guard.broadcast }
         ::Thread.pass
         sleep(0.1)

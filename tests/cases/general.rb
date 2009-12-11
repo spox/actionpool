@@ -44,6 +44,9 @@ class GeneralPoolTest < Test::Unit::TestCase
         @pool.add_jobs([[lambda{|x,y| output << x + y}, [1,1]], [lambda{|x| output << x}, [3]]])
         assert(output.include?(2))
         assert(output.include?(3))
+        @pool << [lambda{|x,y| output = [x,y]}, ['test', [1,2]]]
+        assert_equal(output[0], 'test')
+        assert(output[1].is_a?(Array))
         @pool.shutdown(true)
     end
 end
