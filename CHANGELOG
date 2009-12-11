@@ -1,3 +1,7 @@
+0.2.2
+    - Better thread management within the pool
+    - Restart thread timeouts when modified
+    - Fix argument passing
 0.2.1
     - Set minimum pool size properly when initialized to avoid
       creating extra threads (thanks to Roger Pack)
