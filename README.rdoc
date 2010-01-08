@@ -4,7 +4,7 @@ ActionPool is just a simple thread pool. It allows for various constraints and r
 
 === install (easy):
 
-    gem install ActionPool
+    gem install actionpool
 
 === install (less easy):
 
@@ -16,6 +16,15 @@ ActionPool is just a simple thread pool. It allows for various constraints and r
 === install (less easy that's a little easier)
 
 {rip}[http://hellorip.com/about.html] makes it easy to install directly from a github repository.
+
+=== Testing
+
+ActionPool is currently tested on:
+
+* Ruby 1.8.6-p383
+* Ruby 1.8.7-p248
+* Ruby 1.9.1-p376
+* JRuby 1.4.0
 
 == Documentation
 
