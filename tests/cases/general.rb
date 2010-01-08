@@ -28,6 +28,7 @@ class GeneralPoolTest < Test::Unit::TestCase
         jobs = [].fill(run,0,100)
         @pool.add_jobs(jobs)
         @pool.shutdown
+        sleep(0.01)
         assert_equal(100, a)
         @pool.shutdown(true)
     end
@@ -36,17 +37,24 @@ class GeneralPoolTest < Test::Unit::TestCase
         output = nil
         @pool << [lambda{|x| output = x}, [2]]
         assert(2, output)
+        output = nil
         @pool.add_jobs([[lambda{|x| output = x}, [3]]])
         assert(3, output)
+        output = nil
         @pool << [lambda{|x,y| output = x+y}, [1,2]]
         assert(3, output)
-        output = []
-        @pool.add_jobs([[lambda{|x,y| output << x + y}, [1,1]], [lambda{|x| output << x}, [3]]])
-        assert(output.include?(2))
-        assert(output.include?(3))
-        @pool << [lambda{|x,y| output = [x,y]}, ['test', [1,2]]]
-        assert_equal(output[0], 'test')
-        assert(output[1].is_a?(Array))
+        output = nil
+        arr = []
+        @pool.add_jobs([[lambda{|x,y| arr << x + y}, [1,1]], [lambda{|x| arr << x}, [3]]])
+        ::Thread.pass
+        sleep(0.01)
+        assert(arr.include?(2))
+        assert(arr.include?(3))
+        arr.clear
+        @pool << [lambda{|x,y| arr = [x,y]}, ['test', [1,2]]]
+        sleep(0.01)
+        assert_equal('test', arr[0])
+        assert(arr[1].is_a?(Array))
         @pool.shutdown(true)
     end
 end
