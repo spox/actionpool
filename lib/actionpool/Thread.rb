@@ -23,7 +23,7 @@ module ActionPool
             @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 0
             @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 0
             @kill = false
-            @logger = args[:logger].is_a?(LogHelper) ? args[:logger] : LogHelper.new(args[:logger])
+            @logger = args[:logger].is_a?(Logger) ? args[:logger] : Logger.new(nil)
             @lock = Mutex.new
             @thread = ::Thread.new{ start_thread }
         end
@@ -33,7 +33,11 @@ module ActionPool
         # Stop the thread
         def stop(*args)
             @kill = true
-            @thread.raise Wakeup.new if args.include?(:force) || waiting?
+            if(args.include?(:force) || waiting?)
+                @thread.raise Wakeup.new
+                sleep(0.01)
+                @thread.kill if @thread.alive?
+            end
             nil
         end
 
@@ -49,7 +53,17 @@ module ActionPool
 
         # Current thread status
         def status
-            @lock.synchronize{ return @status }
+            @lock.synchronize{ @status }
+        end
+
+        # Join internal thread
+        def join
+            @thread.join
+        end
+
+        # Kill internal thread
+        def kill
+            @thread.kill
         end
         
         # arg:: :wait or :run
@@ -109,7 +123,7 @@ module ActionPool
                         status(:run)
                         run(action[0], action[1]) unless action.nil?
                         status(:wait)
-                    rescue Timeout::Error => boom
+                    rescue Timeout::Error
                         @kill = true
                     rescue Wakeup
                         @logger.info("Thread #{::Thread.current} was woken up.")
@@ -131,7 +145,6 @@ module ActionPool
             ensure
                 @logger.info("Pool thread is shutting down (#{self})")
                 @pool.remove(self)
-                @pool.create_thread
             end
         end
 
@@ -139,13 +152,14 @@ module ActionPool
         # args:: arguments to be passed to task
         # Run the task
         def run(action, args)
+            args = args.respond_to?(:fixed_flatten) ? args.fixed_flatten(1) : args.flatten(1)
             begin
                 unless(@action_timeout.zero?)
                     Timeout::timeout(@action_timeout) do
-                        action.call(*args[0])
+                        action.call(*args)
                     end
                 else
-                    action.call(*args[0])
+                    action.call(*args)
                 end
             rescue Timeout::Error => boom
                 @logger.warn("Pool thread reached max execution time for action: #{boom}")
