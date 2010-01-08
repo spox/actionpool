@@ -48,9 +48,10 @@ module ActionPool
             fill_pool if @open
         end
 
-        # args:: :force forces a new thread. :nowait will create a thread if threads are waiting
+        # args::    :force forces a new thread. 
+        #           :nowait will create a thread if threads are waiting
         # Create a new thread for pool.
-        # Returns newly created thread of nil if pool is at maximum size
+        # Returns newly created thread or nil if pool is at maximum size
         def create_thread(*args)
             return if pool_closed?
             thread = nil
@@ -92,6 +93,7 @@ module ActionPool
             while(t = @threads.pop) do
                 t.stop(*args)
             end
+            flush unless force
             nil
         end
 
@@ -193,12 +195,10 @@ module ActionPool
         def remove(t)
             raise ArgumentError.new('Expecting an ActionPool::Thread object') unless t.is_a?(ActionPool::Thread)
             t.stop
-            if(@threads.include?(t))
-                @threads.delete(t)
-                return true
-            else
-                return false
-            end
+            del = @threads.include?(t)
+            @threads.delete(t) if del
+            create_thread
+            del
         end
 
         # Maximum number of seconds a thread
@@ -254,7 +254,7 @@ module ActionPool
             lock = Mutex.new
             guard = ConditionVariable.new
             @threads.size.times{ queue{ lock.synchronize{ guard.wait(lock) } } }
-            Thread.pass
+            @queue.wait_empty
             sleep(0.01)
             lock.synchronize{ guard.broadcast }
         end
