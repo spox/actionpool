@@ -1,6 +1,6 @@
 require 'actionpool/Thread'
 require 'actionpool/Queue'
-require 'actionpool/LogHelper'
+require 'logger'
 require 'thread'
 
 module ActionPool
@@ -17,7 +17,7 @@ module ActionPool
         # Creates a new pool
         def initialize(args={})
             raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
-            @logger = LogHelper.new(args[:logger])
+            @logger = args[:logger] && args[:logger].is_a?(Logger) ? args[:logger] : Logger.new(nil)
             @queue = ActionPool::Queue.new
             @threads = []
             @lock = Mutex.new
