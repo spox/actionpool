@@ -93,7 +93,10 @@ module ActionPool
             while(t = @threads.pop) do
                 t.stop(*args)
             end
-            flush unless force
+            unless(force)
+                flush
+                @threads.each{|t|t.join}
+            end
             nil
         end
 
