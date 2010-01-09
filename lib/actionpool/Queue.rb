@@ -27,12 +27,16 @@ module ActionPool
         end
         # Check if queue needs to wait before returning
         def pop
-            @pause_lock.synchronize do
-                @pause_guard.wait(@pause_lock) if @wait
+            if(@wait)
+                @pause_lock.synchronize do
+                    @pause_guard.wait(@pause_lock)
+                end
             end
             o = super
-            @empty_lock.synchronize do
-                @empty_guard.broadcast if empty?
+            if(empty?)
+                @empty_lock.synchronize do
+                    @empty_guard.broadcast
+                end
             end
             return o
         end
