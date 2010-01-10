@@ -25,6 +25,7 @@ module ActionPool
             @kill = false
             @logger = args[:logger].is_a?(Logger) ? args[:logger] : Logger.new(nil)
             @lock = Mutex.new
+            @status = :wait
             @thread = ::Thread.new{ start_thread }
         end
 
@@ -34,7 +35,11 @@ module ActionPool
         def stop(*args)
             @kill = true
             if(args.include?(:force) || waiting?)
-                @thread.raise Wakeup.new
+                begin
+                    @thread.raise Wakeup.new
+                rescue Wakeup
+                    #ignore since we are the caller
+                end
                 sleep(0.01)
                 @thread.kill if @thread.alive?
             end
@@ -43,7 +48,12 @@ module ActionPool
 
         # Currently waiting
         def waiting?
-            @lock.synchronize{@status} == :wait
+            @lock.synchronize{@status == :wait}
+        end
+
+        # Currently running
+        def running?
+            @lock.synchronize{@status == :run}
         end
 
         # Is the thread still alive
@@ -58,19 +68,16 @@ module ActionPool
 
         # Join internal thread
         def join
-            @thread.join
+            @thread.join(@action_timeout)
+            if(@thread.alive?)
+                @thread.kill
+                @thread.join
+            end
         end
 
         # Kill internal thread
         def kill
             @thread.kill
-        end
-        
-        # arg:: :wait or :run
-        # Set current status
-        def status(arg)
-            raise InvalidType.new('Status can only be set to :wait or :run') unless arg == :wait || arg == :run
-            @lock.synchronize{ @status = arg }
         end
 
         # Seconds thread will wait for input
@@ -109,8 +116,8 @@ module ActionPool
         def start_thread
             begin
                 @logger.info("New pool thread is starting (#{self})")
+                @lock.synchronize{ @status = :wait }
                 until(@kill) do
-                    status(:wait)
                     begin
                         action = nil
                         if(@pool.size > @pool.min && !@thread_timeout.zero?)
@@ -120,9 +127,9 @@ module ActionPool
                         else
                             action = @pool.action
                         end
-                        status(:run)
+                        @lock.synchronize{ @status = :run }
                         run(action[0], action[1]) unless action.nil?
-                        status(:wait)
+                        @lock.synchronize{ @status = :wait }
                     rescue Timeout::Error
                         @kill = true
                     rescue Wakeup
