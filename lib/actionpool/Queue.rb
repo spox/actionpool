@@ -16,6 +16,7 @@ module ActionPool
         # threads. Threads will wait for results until signalled
         def pause
             @pause_lock.synchronize{@wait = true}
+            num_waiting.times{ push nil }
         end
         # Allow the queue to return results. Any threads waiting
         # will have results given to them.
@@ -27,18 +28,18 @@ module ActionPool
         end
         # Check if queue needs to wait before returning
         def pop
-            if(@wait)
-                @pause_lock.synchronize do
+            @pause_lock.synchronize do
+                if(@wait)
                     @pause_guard.wait(@pause_lock)
                 end
             end
             o = super
-            if(empty?)
-                @empty_lock.synchronize do
+            @empty_lock.synchronize do
+                if(empty?)
                     @empty_guard.broadcast
                 end
             end
-            return o
+            o
         end
         # Clear queue
         def clear
@@ -49,8 +50,10 @@ module ActionPool
         end
         # Park a thread here until queue is empty
         def wait_empty
-            @empty_lock.synchronize do
-                @empty_guard.wait(@empty_lock) if size > 0
+            if(size > 0)
+                @empty_lock.synchronize do
+                    @empty_guard.wait(@empty_lock)
+                end
             end
         end
     end
