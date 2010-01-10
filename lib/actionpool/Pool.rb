@@ -57,28 +57,32 @@ module ActionPool
             thread = nil
             @lock.synchronize do
                 if(((size == working || args.include?(:nowait)) && @threads.size < @max_threads) || args.include?(:force))
-                    thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                    thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout,
+                        :t_timeout => @thread_timeout, :logger => @logger)
                     @threads << thread
                 end
             end
-            return thread
+            thread
         end
 
         # Fills the pool with the minimum number of threads
         # Returns array of created threads
         def fill_pool
             threads = []
-            @lock.synchronize do
-                required = min - size
-                if(required > 0)
-                    required.times do
-                        thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
-                        @threads << thread
-                        threads << thread
+            if(@open)
+                @lock.synchronize do
+                    required = min - size
+                    if(required > 0)
+                        required.times do
+                            thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to,
+                                :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                            @threads << thread
+                            threads << thread
+                        end
                     end
                 end
             end
-            return threads
+            threads
         end
 
         # force:: force immediate stop
@@ -200,7 +204,7 @@ module ActionPool
             t.stop
             del = @threads.include?(t)
             @threads.delete(t) if del
-            create_thread
+            fill_pool
             del
         end
 
@@ -264,7 +268,11 @@ module ActionPool
 
         # Returns current number of threads in the pool working
         def working
-            @threads.find_all{|t|!t.waiting?}.size
+            @threads.select{|t|t.running?}.size
+        end
+
+        def thread_stats
+            @threads.map{|t|[t.object_id,t.status]}
         end
 
         private
