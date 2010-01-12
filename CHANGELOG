@@ -1,3 +1,9 @@
+0.2.3
+    - Better thread destroying when removed normally and forcibly
+    - Flushing threads to ensure proper joining
+    - Fixed splatting for ruby < 1.9
+    - Removed the useless logger wrapper
+    - Use a simple monitor
 0.2.2
     - Better thread management within the pool
     - Restart thread timeouts when modified
