@@ -6,5 +6,5 @@ rescue LoadError
     # just load it if it's around
 end
 require 'splib'
-Splib.load :Array
+Splib.load :Array, :Monitor
 require 'actionpool/Pool'
