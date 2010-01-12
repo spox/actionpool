@@ -20,7 +20,7 @@ module ActionPool
             @logger = args[:logger] && args[:logger].is_a?(Logger) ? args[:logger] : Logger.new(nil)
             @queue = ActionPool::Queue.new
             @threads = []
-            @lock = Mutex.new
+            @lock = Splib::Monitor.new
             @thread_timeout = args[:t_to] ? args[:t_to] : 0
             @action_timeout = args[:a_to] ? args[:a_to] : 0
             @max_threads = args[:max_threads] ? args[:max_threads] : 100
@@ -58,10 +58,11 @@ module ActionPool
             @lock.synchronize do
                 if(((size == working || args.include?(:nowait)) && @threads.size < @max_threads) || args.include?(:force))
                     thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout,
-                        :t_timeout => @thread_timeout, :logger => @logger)
+                        :t_timeout => @thread_timeout, :logger => @logger, :autostart => false)
                     @threads << thread
                 end
             end
+            thread.start if thread
             thread
         end
 
@@ -75,13 +76,15 @@ module ActionPool
                     if(required > 0)
                         required.times do
                             thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to,
-                                :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger)
+                                :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger,
+                                :autostart => false)
                             @threads << thread
                             threads << thread
                         end
                     end
                 end
             end
+            threads.each{|t|t.start}
             threads
         end
 
@@ -258,12 +261,11 @@ module ActionPool
         # the pool if existing threads have a long thread life waiting
         # for input.
         def flush
-            lock = Mutex.new
-            guard = ConditionVariable.new
-            @threads.size.times{ queue{ lock.synchronize{ guard.wait(lock) } } }
+            mon = Splib::Monitor.new
+            @threads.size.times{ queue{ mon.wait } }
             @queue.wait_empty
             sleep(0.01)
-            lock.synchronize{ guard.broadcast }
+            mon.broadcast
         end
 
         # Returns current number of threads in the pool working
