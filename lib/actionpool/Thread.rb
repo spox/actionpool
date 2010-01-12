@@ -13,6 +13,7 @@ module ActionPool
         # :a_timeout:: max time thread is allowed to work
         # :respond_thread:: thread to send execptions to
         # :logger:: LogHelper for logging messages
+        # :autostart:: Automatically start the thread
         # Create a new thread
         def initialize(args)
             raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
@@ -22,13 +23,18 @@ module ActionPool
             @respond_to = args[:respond_thread]
             @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 0
             @action_timeout = args[:a_timeout] ? args[:a_timeout].to_f : 0
+            args[:autostart] = true unless args.has_key?(:autostart)
             @kill = false
             @logger = args[:logger].is_a?(Logger) ? args[:logger] : Logger.new(nil)
-            @lock = Mutex.new
-            @status = :wait
-            @thread = ::Thread.new{ start_thread }
+            @lock = Splib::Monitor.new
+            @action = nil
+            @thread = args[:autostart] ? ::Thread.new{ start_thread } : nil
         end
 
+        def start
+            @thread = ::Thread.new{ start_thread } if @thread.nil?
+        end
+        
         # :force:: force the thread to stop
         # :wait:: wait for the thread to stop
         # Stop the thread
@@ -48,12 +54,14 @@ module ActionPool
 
         # Currently waiting
         def waiting?
-            @lock.synchronize{@status == :wait}
+            @action.nil?
+#             @status == :wait
         end
 
         # Currently running
         def running?
-            @lock.synchronize{@status == :run}
+            !@action.nil?
+#             @status == :run
         end
 
         # Is the thread still alive
@@ -63,7 +71,7 @@ module ActionPool
 
         # Current thread status
         def status
-            @lock.synchronize{ @status }
+            @action
         end
 
         # Join internal thread
@@ -116,20 +124,17 @@ module ActionPool
         def start_thread
             begin
                 @logger.info("New pool thread is starting (#{self})")
-                @lock.synchronize{ @status = :wait }
                 until(@kill) do
                     begin
-                        action = nil
+                        @action = nil
                         if(@pool.size > @pool.min && !@thread_timeout.zero?)
                             Timeout::timeout(@thread_timeout) do
-                                action = @pool.action
+                                @action = @pool.action
                             end
                         else
-                            action = @pool.action
+                            @action = @pool.action
                         end
-                        @lock.synchronize{ @status = :run }
-                        run(action[0], action[1]) unless action.nil?
-                        @lock.synchronize{ @status = :wait }
+                        run(@action[0], @action[1]) unless @action.nil?
                     rescue Timeout::Error
                         @kill = true
                     rescue Wakeup
