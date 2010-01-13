@@ -10,7 +10,7 @@ spec = Gem::Specification.new do |s|
     s.extra_rdoc_files  = %w(README.rdoc CHANGELOG)
     s.require_paths     = %w(lib)
     s.required_ruby_version = '>= 1.8.6'
-    s.dependency        'splib', '~> 1.4'
+    s.add_dependency    'splib', '~> 1.4'
     s.homepage          = %q(http://github.com/spox/actionpool)
     s.description         = "The ActionPool is an easy to use thread pool for ruby."
 end
