@@ -1,15 +1,38 @@
 require 'thread'
 
+# This is a stub so we don't have to load the
+# actual PriorityQueue library unless we need it
+module Splib
+    class PriorityQueue
+    end
+end
+
 module ActionPool
-    # Adds a little bit extra functionality to the Queue class
-    class Queue < ::Queue
-        # Create a new Queue for the ActionPool::Pool
+    class << self
+        def enable_priority_q
+            Splib.load :PriorityQueue
+        end
+    end
+    class PQueue < Splib::PriorityQueue
         def initialize
             super
             @wait = false
             @pause_guard = Splib::Monitor.new
             @empty_guard = Splib::Monitor.new
+            extend QueueMethods
         end
+    end
+    # Adds a little bit extra functionality to the Queue class
+    class Queue < ::Queue
+        def initialize
+            super
+            @wait = false
+            @pause_guard = Splib::Monitor.new
+            @empty_guard = Splib::Monitor.new
+            extend QueueMethods
+        end
+    end
+    module QueueMethods
         # Stop the queue from returning results to requesting
         # threads. Threads will wait for results until signalled
         def pause
