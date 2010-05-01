@@ -15,7 +15,7 @@ module ActionPool
         # :logger:: LogHelper for logging messages
         # :autostart:: Automatically start the thread
         # Create a new thread
-        def initialize(args)
+        def initialize(args={})
             raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
             raise ArgumentError.new('ActionPool::Thread requires a pool') unless args[:pool]
             raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
@@ -55,13 +55,11 @@ module ActionPool
         # Currently waiting
         def waiting?
             @action.nil?
-#             @status == :wait
         end
 
         # Currently running
         def running?
             !@action.nil?
-#             @status == :run
         end
 
         # Is the thread still alive
