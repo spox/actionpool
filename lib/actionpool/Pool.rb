@@ -4,7 +4,6 @@ require 'logger'
 require 'thread'
 
 module ActionPool
-    # Raised when pool is closed
     class PoolClosed < StandardError
     end
     class Pool
@@ -14,11 +13,17 @@ module ActionPool
         # :t_to:: thread timeout waiting for action to process
         # :a_to:: maximum time action may be worked on before aborting
         # :logger:: logger to print logging messages to
+        # :pqueue:: use a priority queue (defaults to false)
         # Creates a new pool
         def initialize(args={})
             raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
             @logger = args[:logger] && args[:logger].is_a?(Logger) ? args[:logger] : Logger.new(nil)
-            @queue = ActionPool::Queue.new
+            if(args[:pqueue])
+                ActionPool.enable_priority_q
+                @queue = ActionPool::PQueue.new
+            else
+                @queue = ActionPool::Queue.new
+            end
             @threads = []
             @lock = Splib::Monitor.new
             @thread_timeout = args[:t_to] ? args[:t_to] : 0
@@ -102,7 +107,7 @@ module ActionPool
             end
             unless(force)
                 flush
-                @threads.each{|t|t.join}
+                @threads.each{|x|x.join}
             end
             nil
         end
@@ -284,7 +289,7 @@ module ActionPool
             @logger.info("Pool is being resized to stated maximum: #{max}")
             until(size <= max) do
                 t = nil
-                t = @threads.find{|t|t.waiting?}
+                t = @threads.find{|x|x.waiting?}
                 t = @threads.shift unless t
                 t.stop
             end
