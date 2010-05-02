@@ -61,10 +61,16 @@ module ActionPool
             return if pool_closed?
             thread = nil
             @lock.synchronize do
+                if(args.include?(:nowait) || action_size > size || action_size > waiting || args.include?(:force))
+                    if(size < max || args.include?(:force))
+                        thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to,
+                            :a_timeout => @action_timeout, :t_timeout => @thread_timeout, :logger => @logger,
+                            :autostart => false)
+                        @threads << thread
+                    end
+                end
                 if(((size == working || args.include?(:nowait)) && @threads.size < @max_threads) || args.include?(:force))
-                    thread = ActionPool::Thread.new(:pool => self, :respond_thread => @respond_to, :a_timeout => @action_timeout,
-                        :t_timeout => @thread_timeout, :logger => @logger, :autostart => false)
-                    @threads << thread
+
                 end
             end
             thread.start if thread
@@ -129,12 +135,15 @@ module ActionPool
 
         # action:: proc to be executed
         # Add a new proc/lambda to be executed
+        # TODO: When using a prio queue for action holding, queue items
+        # based on thread ID
         def queue(action, *args)
             raise PoolClosed.new("Pool #{self} is currently closed") if pool_closed?
             raise ArgumentError.new('Expecting block') unless action.is_a?(Proc)
-            @queue << [action, args]
-            ::Thread.pass
-            create_thread
+            @lock.synchronize do
+                @queue << [action, args]
+                create_thread
+            end
         end
 
         # jobs:: Array of proc/lambdas
@@ -157,7 +166,7 @@ module ActionPool
                 end
             ensure
                 num = jobs.size - @threads.select{|t|t.waiting?}.size
-                num.times{ create_thread(:nowait) } if num > 0
+                @lock.synchronize{ num.times{ create_thread(:nowait) } if num > 0 }
                 @queue.unpause
             end
             true
@@ -276,6 +285,11 @@ module ActionPool
         # Returns current number of threads in the pool working
         def working
             @threads.select{|t|t.running?}.size
+        end
+
+        # Returns current number of threads in the pool waiting
+        def waiting
+            @threads.select{|t|t.waiting?}.size
         end
 
         def thread_stats
