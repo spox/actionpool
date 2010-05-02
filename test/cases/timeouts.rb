@@ -17,17 +17,16 @@ class TimeoutPoolTest < Test::Unit::TestCase
             @pool.process do
                 until(stop) do
                     output << 1
-                    sleep(0.1)
+                    sleep(0.3)
                 end
             end
         end
-        assert(@pool.working >= 10)
-        assert_equal(20, output.size)
-        sleep(0.11)
-        stop = true
         sleep(0.1)
+        assert_equal(20, output.size)
+        sleep(0.3)
         assert_equal(0, @pool.working)
-        assert_equal(40, output.size)
+        assert_equal(20, output.size)
+        assert_equal(20, @pool.size)
         @pool.shutdown(true)
     end
     def test_threadtimeout
