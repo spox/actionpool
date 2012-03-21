@@ -1,19 +1,19 @@
 0.2.3
-    - Better thread destroying when removed normally and forcibly
-    - Flushing threads to ensure proper joining
-    - Fixed splatting for ruby < 1.9
-    - Removed the useless logger wrapper
-    - Use a simple monitor
+  - Better thread destroying when removed normally and forcibly
+  - Flushing threads to ensure proper joining
+  - Fixed splatting for ruby < 1.9
+  - Removed the useless logger wrapper
+  - Use a simple monitor
 0.2.2
-    - Better thread management within the pool
-    - Restart thread timeouts when modified
-    - Fix argument passing
+  - Better thread management within the pool
+  - Restart thread timeouts when modified
+  - Fix argument passing
 0.2.1
-    - Set minimum pool size properly when initialized to avoid
-      creating extra threads (thanks to Roger Pack)
+  - Set minimum pool size properly when initialized to avoid
+    creating extra threads (thanks to Roger Pack)
 0.2.0
-    - Added argument support for passed tasks (thanks simonmenke)
-    - Faster pool resizing
-    - Smarter thread creation to limit unneeded creation
-    - Allow floats for timeouts to provide better control
-    - Test verified support for 1.8.6, 1.8.7, 1.9.1 and JRuby 1.4.0RC1
+  - Added argument support for passed tasks (thanks simonmenke)
+  - Faster pool resizing
+  - Smarter thread creation to limit unneeded creation
+  - Allow floats for timeouts to provide better control
+  - Test verified support for 1.8.6, 1.8.7, 1.9.1 and JRuby 1.4.0RC1
