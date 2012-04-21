@@ -17,7 +17,8 @@ class ThreadTest < Test::Unit::TestCase
     assert(@thread.alive?)
     stop = false
     10.times{ @pool << lambda{ a = 0; a += 1 until stop || a > 9999999999 } }
-    assert(!@thread.waiting?)
+    sleep(0.1)
+    assert(!@thread.waiting?, 'Thread is waiting')
     @thread.stop(:force)
     sleep(0.01)
     assert(!@thread.alive?)

@@ -7,7 +7,7 @@ class QueueTest < Test::Unit::TestCase
   end
   def test_pop
     3.times{|i|@queue << i}
-    3.times{|i|assert(i, @queue.pop)}
+    3.times{|i|assert_equal(i, @queue.pop)}
     assert(@queue.empty?)
   end
   def test_pause

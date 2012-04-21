@@ -12,7 +12,7 @@ class ShutdownPoolTest < Test::Unit::TestCase
     result = 0
     @pool << lambda{ result = 5 }
     sleep(0.01)
-    assert(5, result)
+    assert_equal(5, result)
     @pool.status :closed
     assert_raise(ActionPool::PoolClosed) do
       @pool << lambda{}

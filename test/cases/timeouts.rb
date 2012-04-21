@@ -26,7 +26,7 @@ class TimeoutPoolTest < Test::Unit::TestCase
     sleep(0.3)
     assert_equal(0, @pool.working)
     assert_equal(20, output.size)
-    assert_equal(20, @pool.size)
+    assert_equal(10, @pool.size)
     @pool.shutdown(true)
   end
   def test_threadtimeout
@@ -39,11 +39,11 @@ class TimeoutPoolTest < Test::Unit::TestCase
             end }, 0, 20)
     @pool.add_jobs(t)
     ::Thread.pass
-    sleep(0.01)
+    sleep(0.05)
     assert(@pool.size >= 20)
     ::Thread.pass
-    sleep(0.1)
-    assert(10, @pool.size)
+    sleep(0.2)
+    assert_equal(10, @pool.size)
     @pool.shutdown(true)
   end
 end
