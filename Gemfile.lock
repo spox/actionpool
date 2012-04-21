@@ -1,0 +1,18 @@
+PATH
+  remote: .
+  specs:
+    ActionPool (0.2.3)
+      splib (~> 1.4)
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    rake (0.9.2.2)
+    splib (1.4.3)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  ActionPool!
+  rake
