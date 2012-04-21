@@ -16,9 +16,7 @@ module ActionPool
     # :autostart:: Automatically start the thread
     # Create a new thread
     def initialize(args={})
-      raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
-      raise ArgumentError.new('ActionPool::Thread requires a pool') unless args[:pool]
-      raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
+      test_args(args)
       @pool = args[:pool]
       @respond_to = args[:respond_thread]
       @thread_timeout = args[:t_timeout] ? args[:t_timeout].to_f : 0
@@ -173,7 +171,16 @@ module ActionPool
         end
       rescue Timeout::Error => boom
         @logger.warn("Pool thread reached max execution time for action: #{boom}")
+        raise boom
       end
+    end
+
+    private
+
+    def test_args(args)
+      raise ArgumentError.new('Hash required for initialization') unless args.is_a?(Hash)
+      raise ArgumentError.new('ActionPool::Thread requires a pool') unless args[:pool]
+      raise ArgumentError.new('ActionPool::Thread requries thread to respond') unless args[:respond_thread]
     end
   end
 end
