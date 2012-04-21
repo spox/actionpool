@@ -1,7 +1,7 @@
-require 'actionpool/Thread'
-require 'actionpool/Queue'
 require 'logger'
 require 'thread'
+require 'actionpool/thread'
+require 'actionpool/queue'
 
 module ActionPool
   class PoolClosed < StandardError
@@ -218,10 +218,10 @@ module ActionPool
     # Removes a thread from the pool
     def remove(t)
       raise ArgumentError.new('Expecting an ActionPool::Thread object') unless t.is_a?(ActionPool::Thread)
-      t.stop
       del = @threads.include?(t)
       @threads.delete(t) if del
       fill_pool
+      t.stop
       del
     end
 
