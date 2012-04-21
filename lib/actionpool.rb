@@ -7,4 +7,4 @@ rescue LoadError
 end
 require 'splib'
 Splib.load :Array, :Monitor
-require 'actionpool/Pool'
+require 'actionpool/pool'
