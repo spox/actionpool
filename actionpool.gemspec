@@ -1,5 +1,5 @@
 spec = Gem::Specification.new do |s|
-  s.name        = 'ActionPool'
+  s.name        = 'actionpool'
   s.author      = %q(spox)
   s.email       = %q(spox@modspox.com)
   s.version       = '0.2.3'
