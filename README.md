@@ -5,7 +5,7 @@ ActionPool is just a simple thread pool. It allows for various constraints and
 resizing in a pretty easy and unobtrusive manner. You can set limits on how 
 long tasks are worked on, as well as on the life of a thread. For things that 
 like to use lots threads, it can be helpful to reuse threads instead of 
-constantly recreating them.
+constantly recreating them. 
 
 Install:
 ---------------
