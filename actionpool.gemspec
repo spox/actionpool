@@ -6,7 +6,7 @@ spec = Gem::Specification.new do |s|
   s.summary       = %q(Thread Pool)
   s.platform      = Gem::Platform::RUBY
   s.files       = Dir['**/*']
-  s.rdoc_options    = %w(--title ActionPool --main README.rdoc --line-numbers)
+  s.rdoc_options    = %w(--title ActionPool --main README.md --line-numbers)
   s.extra_rdoc_files  = %w(README.rdoc CHANGELOG)
   s.require_paths   = %w(lib)
   s.required_ruby_version = '>= 1.8.6'
