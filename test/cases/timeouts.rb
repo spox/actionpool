@@ -3,47 +3,27 @@ require 'test/unit'
 
 class TimeoutPoolTest < Test::Unit::TestCase
   def setup
-    @pool = ActionPool::Pool.new
+    @pool = ActionPool::Pool.new(pool_args: {size: 20})
   end
   def teardown
-    @pool.shutdown(true)
+    @pool.shutdown
   end
   def test_actiontimeout
-    @pool.action_timeout = 0.25
-    assert_equal(10, @pool.size)
+    @pool.action_timeout = 3
     stop = false
     output = []
     20.times do
       @pool.process do
         until(stop) do
           output << 1
-          sleep(0.3)
+          sleep(4)
         end
       end
     end
-    sleep(0.1)
+    sleep(2)
     assert_equal(20, output.size)
-    sleep(0.3)
-    assert_equal(0, @pool.working)
+    sleep(2)
     assert_equal(20, output.size)
-    assert_equal(10, @pool.size)
-    @pool.shutdown(true)
-  end
-  def test_threadtimeout
-    @pool.thread_timeout = 0.05
-    assert_equal(10, @pool.size)
-    t = [].fill(lambda{
-            begin
-              sleep(0.1)
-            rescue
-            end }, 0, 20)
-    @pool.add_jobs(t)
-    ::Thread.pass
-    sleep(0.05)
-    assert(@pool.size >= 20)
-    ::Thread.pass
-    sleep(0.2)
-    assert_equal(10, @pool.size)
-    @pool.shutdown(true)
+    stop = true
   end
 end

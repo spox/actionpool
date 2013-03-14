@@ -1,24 +1,30 @@
-GIT
-  remote: git://github.com/spox/splib.git
-  revision: fd4451243ce4c9a319e74b33e6decdd09a509f43
-  specs:
-    splib (1.4.3)
-
 PATH
   remote: .
   specs:
     actionpool (0.2.3)
-      splib (~> 1.4)
+      splib (>= 1.4)
+
+PATH
+  remote: /home/spox/Projects/spox/splib
+  specs:
+    splib (1.4.3)
+      celluloid
 
 GEM
   remote: http://rubygems.org/
   specs:
+    celluloid (0.12.4)
+      facter (>= 1.6.12)
+      timers (>= 1.0.0)
+    facter (1.6.17)
     rake (0.9.2.2)
+    timers (1.1.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   actionpool!
+  celluloid
   rake
   splib!
